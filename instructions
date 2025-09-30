@@ -63,8 +63,8 @@ CONFIG_NET_9P_VIRTIO=y
 > target remote :1234
 
 # Normal debugging workflow. For example set a breakpoint.
-break start_kernel
+> break start_kernel
 
 # Continue execution
-c
+> c
 
