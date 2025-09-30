@@ -1,0 +1,70 @@
+# On Fedora install the dependencies first.
+> sudo dnf install -y qemu-system-x86 qemu-img debootstrap e2fsprogs
+
+# Create an empty ext4 image.
+> dd if=/dev/zero of=/home/<user>/rootfs.ext4 bs=1M count=2048 # 2GB image
+> mkfs.ext4 ~/rootfs.ext4
+
+# Mount the image.
+> mkdir -p ~/mnt/rootfs
+> sudo mount -o loop ~/rootfs.ext4 ~/mnt/rootfs
+
+# Bootstrap a minimal Debian system.
+> sudo debootstrap --arch=amd64 stable ~/mnt/rootfs http://deb.debian.org/debian
+
+# Basic setup (chroot into it).
+> sudo chroot ~/mnt/rootfs /bin/bash
+
+# Set the password.
+# NOTE: This is important, you can't login into the Debian system without this.
+>passwd
+
+# Install basic packages.
+# NOTE: that you will get warnings and errors when installing systemd about certain vfs not existing like /proc/ etc...
+# Just ignore them for now, they are provided by the kernel and will be automatically loaded into QEMU when booting the kernel.
+> apt update
+> apt install -y systemd systemd-sysv sudo vim ssh net-tools iproute2
+
+# Optional (allow SSH Login).
+> echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
+
+# Set a hostname.
+> echo "qemu-dev" > /etc/hostname
+
+# Unmount the image.
+> exit
+> sudo umount ~/mnt/rootfs
+
+# NOTE: If linux source is somewhere else other than the following directory, you'll have to update both krun and kdebug!
+KDIR=/home/<user>/Projects/linux
+
+# The kernel should be compiled with 9P VirtIO support so it can share directory with host.
+# In .config make sure the following settings are set.
+CONFIG_NET_9P=y
+CONFIG_NET_9P_FD=y
+CONFIG_NET_9P_VIRTIO=y
+
+# In the guest VM edit /etc/fstab file and add the following:
+> hostshare   /mnt/hostshare   9p   trans=virtio,version=9p2000.L,rw   0   0
+
+# After boot you aren't connected to the internet automatically.
+# Either manually run dhcpd command or put that command into some startup script.
+> dhcpd
+
+# Debugging:
+# Run the debugging instance with kdebug (nothing new apart from -s and -S flags that don't exist in krun).
+> kdebug
+
+# Start GDB with kernel image.
+# NOTE: Use vmlinux and not bzImage because bzImage is compressed and doesn't contain the debugging symbols.
+> gdb ~/Projects/linux/vmlinux
+
+# Inside GDB connect to the kernel inside QEMU.
+> target remote :1234
+
+# Normal debugging workflow. For example set a breakpoint.
+break start_kernel
+
+# Continue execution
+c
+

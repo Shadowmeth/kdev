@@ -1,0 +1,19 @@
+#!/bin/zsh
+
+KERNEL=~/Projects/linux/arch/x86_64/boot/bzImage
+ROOTFS=~/rootfs.ext4
+MEMORY=2048M
+
+qemu-system-x86_64 \
+  -s \
+  -S \
+  -kernel "$KERNEL" \
+  -boot c \
+  -m "$MEMORY" \
+  -hda "$ROOTFS" \
+  -append "root=/dev/sda rw console=ttyS0,115200 acpi=off nokaslr" \
+  -serial mon:stdio \
+  -display none \
+  -netdev user,id=n0,hostfwd=tcp::2222-:22 \
+  -device e1000,netdev=n0 \
+  -virtfs local,path=/home/syedkhs/Projects/linux,mount_tag=hostshare,security_model=none
